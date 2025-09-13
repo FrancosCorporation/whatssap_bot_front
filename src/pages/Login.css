@@ -1,0 +1,190 @@
+.login-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1e3a8a 0%, #5b21b6 100%);
+    padding: 20px;
+  }
+  
+  .login-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 420px;
+    overflow: hidden;
+  }
+  
+  .login-header {
+    background: #2563eb;
+    padding: 24px;
+    text-align: center;
+  }
+  
+  .login-header h2 {
+    color: white;
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
+  }
+  
+  .login-body {
+    padding: 32px;
+  }
+  
+  .form-group {
+    margin-bottom: 24px;
+  }
+  
+  .form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 4px;
+  }
+  
+  .label-forgot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  
+  .forgot-password {
+    font-size: 14px;
+    color: #2563eb;
+    text-decoration: none;
+  }
+  
+  .forgot-password:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+  }
+  
+  .input-group {
+    position: relative;
+  }
+  
+  .input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+  }
+  
+  .form-control {
+    width: 100%;
+    padding: 10px 10px 10px 40px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  
+  .form-control:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    outline: none;
+  }
+  
+  .login-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s;
+  }
+  
+  .login-button:hover {
+    background: #1d4ed8;
+  }
+  
+  .login-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  .spinner {
+    margin-right: 8px;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .error-message {
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+  }
+  
+  .error-message svg {
+    flex-shrink: 0;
+    margin-right: 8px;
+    margin-top: 2px;
+  }
+  
+  .error-message p {
+    font-size: 14px;
+    color: #b91c1c;
+    margin: 0;
+  }
+  
+  .signup-link {
+    margin-top: 32px;
+    text-align: center;
+    font-size: 14px;
+    color: #4b5563;
+  }
+  
+  .signup-link a {
+    color: #2563eb;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  
+  .signup-link a:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+  }
+  
+  /* Esconder o campo honeypot */
+  .honeypot {
+    display: none;
+    opacity: 0;
+    position: absolute;
+    left: -9999px;
+  }
+  .forgot-password,
+.link-button {
+  cursor: pointer;
+  text-decoration: underline;
+  color: #007bff; /* opcional: cor de link */
+}
+
+.forgot-password:hover,
+.link-button:hover {
+  opacity: 0.8; /* opcional: efeito visual ao passar o mouse */
+}
