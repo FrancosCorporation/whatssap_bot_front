@@ -1,70 +1,80 @@
-# Getting Started with Create React App
+# WhatsApp Bot — Front-end
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![Create React App](https://img.shields.io/badge/Create%20React%20App-5-09D3AC?logo=createreactapp&logoColor=white)
+![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-blue)
+![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
 
-## Available Scripts
+Interface web em React para autenticação de usuários e controle da sessão do bot de WhatsApp (QR Code, status de conexão e logout).
 
-In the project directory, you can run:
+## Sobre
 
-### `npm start`
+Este é o front-end do bot de WhatsApp: um painel em React que consome a API do repositório irmão [whatssap_bot_api_back_end](https://github.com/FrancosCorporation/whatssap_bot_api_back_end). O usuário cria a conta, faz login e, no dashboard, liga/desliga o bot e escaneia o QR Code para parear o número.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+A aplicação foi criada com Create React App e usa React Router para separar as telas de login, cadastro, recuperação de senha e dashboard (esta última protegida).
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Funcionalidades
 
-### `npm test`
+- Tela de login com validação de campos, campo honeypot anti-bot e envio de `POST /login` via Axios com cookies (`withCredentials`); em caso de sucesso grava `token` e `authenticated` no `localStorage` e redireciona para o dashboard.
+- Tela de cadastro com confirmação de senha, confirmação de e-mail e envio de `POST /register`, redirecionando para o login.
+- Tela de recuperação de senha (apenas mensagem informativa no cliente; ainda não chama a API).
+- Rota privada (`/dashboard`) que só renderiza com `authenticated === 'true'` no `localStorage`.
+- Dashboard com botão de ativar/desativar o bot, exibição do QR Code retornado pela API (`POST /api/whatsapp/start`) e polling de `GET /api/check-session-status` a cada 3 segundos para confirmar a conexão.
+- Sidebar responsiva (colapsa em telas menores) e logout que remove o token e volta para o login.
+- Cliente Axios central em `src/services/api.js` com interceptor que injeta o token `Bearer` em todas as requisições (as funções `login`/`fetchUserData` desse arquivo estão simuladas para demonstração).
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Stack
 
-### `npm run build`
+- **React 18** (Create React App 5, `react-scripts`)
+- **React Router DOM 6**
+- **Axios**
+- **React Icons** (ícones Feather)
+- **CSS puro** (arquivos `.css` por página)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Como rodar
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Requer configuração de ambiente: a URL da API é lida de `REACT_APP_API_URL` (arquivo `.env` na raiz, atualmente apontando para `http://localhost:3005`).
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+# 1. Instalar dependências
+npm install
 
-### `npm run eject`
+# 2. Conferir o arquivo .env
+# REACT_APP_API_URL=http://localhost:3005
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+# 3. Subir o front-end em modo de desenvolvimento (http://localhost:3000)
+npm start
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# Build de produção
+npm run build
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# Testes (CRA + Testing Library)
+npm test
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+# Ejetar a configuração do CRA (irreversível)
+npm run eject
+```
 
-## Learn More
+A API precisa estar rodando (repositório `whatssap_bot_api_back_end`) e com CORS liberado para `http://localhost:3000`.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Estrutura do projeto
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```
+whatssap_bot_front/
+├── public/
+│   ├── index.html
+│   └── manifest.json
+├── src/
+│   ├── App.js
+│   ├── index.js
+│   ├── layouts/MainLayout.js
+│   ├── pages/            # Login, Signup, Forgot, Dashboard, Home, Profile (+ CSS)
+│   ├── routes/Router.js  # rotas e PrivateRoute
+│   ├── services/api.js   # cliente Axios
+│   └── assets/
+└── .env                  # REACT_APP_API_URL
+```
 
-### Code Splitting
+## Licença
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Distribuído sob a licença MIT. Consulte o arquivo [LICENSE](./LICENSE).
