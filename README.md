@@ -1,5 +1,23 @@
 # WhatsApp Bot — Front-end
 
+## 🐳 Instalação e Execução (Docker) — recomendado
+
+### Pré-requisitos
+- [Docker](https://docs.docker.com/get-docker/) + Docker Compose
+
+### Rodar com Docker
+```bash
+docker compose up --build
+```
+
+
+### Sem Docker (local)
+```bash
+npm install
+npm start
+```
+
+
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![Create React App](https://img.shields.io/badge/Create%20React%20App-5-09D3AC?logo=createreactapp&logoColor=white)
 ![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-blue)
