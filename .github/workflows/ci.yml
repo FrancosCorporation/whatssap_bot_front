@@ -1,0 +1,33 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm audit --audit-level=high
+      - name: Reject removed login mocks and token storage
+        run: |
+          if grep -R -n -E 'token-simulado|sua-api\.com|localStorage.{0,20}token' src --include='*.js' --include='*.jsx'; then
+            echo 'A checagem encontrou login simulado ou persistência local de token.'
+            exit 1
+          fi
+      - run: npm run build
+        env:
+          VITE_API_URL: http://localhost:3005
