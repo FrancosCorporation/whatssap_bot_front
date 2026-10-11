@@ -1,83 +1,109 @@
 import axios from 'axios';
 
-// Configuração base do axios
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+
+if (!configuredApiUrl) {
+  throw new Error('VITE_API_URL não foi definida. Copie .env.example para .env e configure a URL da API.');
+}
+
+let parsedApiUrl;
+try {
+  parsedApiUrl = new URL(configuredApiUrl);
+} catch {
+  throw new Error('VITE_API_URL deve ser uma URL HTTP(S) absoluta.');
+}
+
+if (
+  !['http:', 'https:'].includes(parsedApiUrl.protocol) ||
+  parsedApiUrl.username || parsedApiUrl.password || parsedApiUrl.search || parsedApiUrl.hash ||
+  (parsedApiUrl.pathname !== '/' && parsedApiUrl.pathname !== '')
+) {
+  throw new Error('VITE_API_URL deve apontar para a origem HTTP(S) da API, sem caminho ou credenciais.');
+}
+
+export const apiUrl = parsedApiUrl.origin;
+
 const api = axios.create({
-  baseURL: 'https://sua-api.com', // Substitua pela URL da sua API
-  timeout: 10000,
+  baseURL: apiUrl,
+  timeout: 15_000,
+  withCredentials: true,
   headers: {
+    Accept: 'application/json',
     'Content-Type': 'application/json',
-  }
+  },
 });
 
-// Interceptor para adicionar token de autenticação em cada requisição
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
+    if (
+      error.response?.status === 401 &&
+      !error.config?.skipAuthRedirect &&
+      typeof window !== 'undefined'
+    ) {
+      window.dispatchEvent(new Event('auth:unauthorized'));
+    }
     return Promise.reject(error);
-  }
+  },
 );
 
-// Função de login
-export const login = async (email, password) => {
-  try {
-    // Para fins de demonstração, estou simulando uma resposta bem-sucedida
-    // Em produção, descomente o código abaixo e use sua API real
-    
-    // const response = await api.post('/auth/login', { email, password });
-    // return response.data;
-    
-    // Simulação de resposta (remova em produção):
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { 
-      token: 'token-simulado-para-testes',
-      user: { id: 1, name: 'Usuário Teste', email }
-    };
-  } catch (error) {
-    if (error.response) {
-      // Erro retornado pela API
-      throw new Error(error.response.data.message || 'Credenciais inválidas');
-    } else if (error.request) {
-      // Sem resposta do servidor
-      throw new Error('Servidor indisponível. Tente novamente mais tarde.');
-    } else {
-      // Erro na configuração da requisição
-      throw new Error('Erro ao conectar com o servidor.');
-    }
+export function getApiErrorMessage(error, fallback = 'Não foi possível concluir a solicitação.') {
+  if (error.response?.status === 429) {
+    return error.response.data?.message || 'Muitas tentativas. Aguarde um pouco e tente novamente.';
   }
-};
-
-// Função para buscar dados do usuário
-export const fetchUserData = async () => {
-  try {
-    // Para fins de demonstração, estou simulando uma resposta bem-sucedida
-    // Em produção, descomente o código abaixo e use sua API real
-    
-    // const response = await api.get('/user/profile');
-    // return response.data;
-    
-    // Simulação de resposta (remova em produção):
-    await new Promise(resolve => setTimeout(resolve, 800));
-    return { 
-      id: 1, 
-      name: 'Usuário Teste', 
-      email: 'usuario@teste.com',
-      role: 'admin'
-    };
-  } catch (error) {
-    if (error.response && error.response.status === 401) {
-      // Token expirado ou inválido
-      localStorage.removeItem('token');
-      throw new Error('Sessão expirada. Faça login novamente.');
-    }
-    throw error;
+  if (typeof error.response?.data?.message === 'string') {
+    return error.response.data.message;
   }
-};
+  if (error.request) {
+    return 'Não foi possível conectar à API. Verifique se o servidor está disponível.';
+  }
+  return fallback;
+}
 
-// Exporte o cliente axios configurado para uso em outros componentes
+export async function login(email, password) {
+  const response = await api.post('/login', { email, password }, { skipAuthRedirect: true });
+  return response.data.user;
+}
+
+export async function register(userData) {
+  const response = await api.post('/register', userData, { skipAuthRedirect: true });
+  return response.data;
+}
+
+export async function verifySession() {
+  return api.get('/verify', { skipAuthRedirect: true });
+}
+
+export async function fetchUserProfile() {
+  const response = await api.get('/api/user/profile');
+  return response.data;
+}
+
+export async function logout() {
+  return api.post('/logout', {}, { skipAuthRedirect: true });
+}
+
+export async function getWhatsAppSessionStatus() {
+  const response = await api.get('/api/check-session-status');
+  return response.data;
+}
+
+export async function startWhatsAppSession() {
+  const response = await api.post('/api/whatsapp/start', {});
+  return response.data;
+}
+
+export async function stopWhatsAppSession() {
+  return api.post('/api/whatsapp/stop', {});
+}
+
+export async function sendWhatsAppMessage(to, message) {
+  return api.post('/api/whatsapp/send', { to, message });
+}
+
+export async function updateUserSettings(settings) {
+  const response = await api.put('/api/user/settings', settings);
+  return response.data;
+}
+
 export default api;

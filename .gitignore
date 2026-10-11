@@ -4,6 +4,11 @@
 /node_modules
 /.pnp
 .pnp.js
+/dist
+*.backup
+.env
+.env.*
+!.env.example
 
 # testing
 /coverage

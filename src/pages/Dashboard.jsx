@@ -1,526 +1,530 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import {
+  FiActivity,
+  FiHelpCircle,
+  FiLogOut,
+  FiMenu,
+  FiMessageSquare,
+  FiSettings,
+  FiUser,
+  FiX,
+} from 'react-icons/fi';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  getApiErrorMessage,
+  getWhatsAppSessionStatus,
+  sendWhatsAppMessage,
+  startWhatsAppSession,
+  stopWhatsAppSession,
+  updateUserSettings,
+} from '../services/api';
 import './Dashboard.css';
 
-// Icons import
-import { 
-  FiUser, 
-  FiSettings, 
-  FiLogOut, 
-  FiMessageSquare, 
-  FiAlertCircle, 
-  FiCheckCircle,
-  FiMenu,
-  FiX,
-  FiActivity,
-  FiUsers,
-  FiHelpCircle,
-  FiBarChart2
-} from 'react-icons/fi';
+const navigation = [
+  { id: 'dashboard', label: 'Visão geral', icon: FiActivity },
+  { id: 'profile', label: 'Meu perfil', icon: FiUser },
+  { id: 'settings', label: 'Configurações', icon: FiSettings },
+  { id: 'help', label: 'Ajuda', icon: FiHelpCircle },
+];
 
-const apiUrl = process.env.REACT_APP_API_URL;
+function initialsFor(name = '') {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || 'U';
+}
 
-const Dashboard = () => {
-  const [qrCode, setQrCode] = useState(null);
-  const [status, setStatus] = useState('Carregando...');
-  const [isActive, setIsActive] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activePage, setActivePage] = useState('dashboard');
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [user, setUser] = useState({
-    name: 'Usuário',
-    email: 'usuario@exemplo.com',
-    avatar: 'https://via.placeholder.com/150'
-  });
-  
+function formatDate(value) {
+  if (!value) return 'Não informada';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Não informada';
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(date);
+}
+
+export default function Dashboard() {
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => (
+    typeof window === 'undefined' || window.innerWidth > 768
+  ));
+  const [activePage, setActivePage] = useState('dashboard');
+  const [sessionState, setSessionState] = useState('loading');
+  const [qrCode, setQrCode] = useState('');
+  const [feedback, setFeedback] = useState(null);
+  const [recipient, setRecipient] = useState('');
+  const [message, setMessage] = useState('');
+  const [messageFeedback, setMessageFeedback] = useState(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [allowPauseContinue, setAllowPauseContinue] = useState(user?.allowPauseContinue !== false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsFeedback, setSettingsFeedback] = useState(null);
 
-  // Check screen size for responsive design
+  const displayName = user?.name || 'Usuário';
+  const initials = useMemo(() => initialsFor(displayName), [displayName]);
+  const isConnected = sessionState === 'connected';
+  const isBusy = ['loading', 'starting', 'stopping'].includes(sessionState);
+
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-      if (window.innerWidth <= 768) {
-        setSidebarOpen(false);
-      }
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    const handleScreenSize = (event) => {
+      setIsMobile(event.matches);
+      setSidebarOpen(!event.matches);
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    handleScreenSize(mediaQuery);
+    mediaQuery.addEventListener('change', handleScreenSize);
+    return () => mediaQuery.removeEventListener('change', handleScreenSize);
   }, []);
 
-  // Função para obter o token do localStorage
-  const getAuthToken = () => {
-    return localStorage.getItem('token');
-  };
+  useEffect(() => {
+    let active = true;
 
-  // Função para iniciar a sessão do WhatsApp
-  const startWhatsAppSession = async () => {
-    setIsActive(true);
-    const token = getAuthToken();
-    
-    if (!token) {
-      setStatus('Erro: Token não encontrado');
-      navigate('/login');
-      return;
-    }
-    
-    try {
-      setStatus('Iniciando sessão...');
-      const response = await axios.post(`${apiUrl}/api/whatsapp/start`, {}, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      if (response.status === 200) {
-        setQrCode(response.data.qr);
-        setStatus('Escaneie o QR Code com seu WhatsApp');
-        pollAuthStatus(token);
-      }
-    } catch (error) {
-      console.error('Erro ao iniciar sessão:', error);
-      setStatus('Erro na conexão com o servidor');
-      setIsActive(false);
-    }
-  };
-
-  // Função para parar a sessão do WhatsApp
-  const stopWhatsAppSession = async () => {
-    const token = getAuthToken();
-    
-    if (!token) {
-      setStatus('Erro: Token não encontrado');
-      navigate('/login');
-      return;
-    }
-    
-    try {
-      setStatus('Desconectando...');
-      const response = await axios.post(`${apiUrl}/api/whatsapp/stop`, {}, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      if (response.status === 200) {
-        setQrCode(null);
-        setStatus('Bot WhatsApp desativado');
-        setIsActive(false);
-      }
-    } catch (error) {
-      console.error('Erro ao parar sessão:', error);
-      setStatus('Erro ao desconectar o bot');
-    }
-  };
-
-  // Função para verificar o status de autenticação
-  const pollAuthStatus = (token) => {
-    setTimeout(() => {
-      axios.get(`${apiUrl}/api/check-session-status`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+    getWhatsAppSessionStatus()
+      .then((session) => {
+        if (!active) return;
+        if (session.authenticated) {
+          setSessionState('connected');
+        } else if (session.connecting) {
+          setSessionState('waiting');
+        } else {
+          setSessionState('offline');
+        }
       })
-        .then((response) => {
-          if (response.data.authenticated) {
-            setQrCode(null);
-            setStatus('Bot WhatsApp ativo e conectado');
-          } else {
-            pollAuthStatus(token);
-          }
-        })
-        .catch((error) => {
-          console.error('Erro ao verificar status:', error);
-          setStatus('Erro ao verificar status de conexão');
-        });
-    }, 3000);
-  };
-
-  // Buscar informações do usuário
-  const fetchUserInfo = async () => {
-    const token = getAuthToken();
-    
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-    
-    try {
-      const response = await axios.get(`${apiUrl}/api/user/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      .catch((error) => {
+        if (!active) return;
+        setSessionState('error');
+        setFeedback({ type: 'error', text: getApiErrorMessage(error, 'Não foi possível consultar a sessão.') });
       });
-      
-      if (response.status === 200) {
-        setUser(response.data);
-      }
-    } catch (error) {
-      console.error('Erro ao obter informações do usuário:', error);
-    }
-  };
+
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
-    fetchUserInfo();
-    
-    // Verifica se o bot já está ativo ao carregar a página
-    const checkBotStatus = async () => {
-      const token = getAuthToken();
-      
-      if (!token) {
-        navigate('/login');
-        return;
-      }
-      
+    if (sessionState !== 'waiting') return undefined;
+
+    let active = true;
+    let timeoutId;
+
+    const poll = async () => {
       try {
-        const response = await axios.get(`${apiUrl}/api/whatsapp/status`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        
-        if (response.status === 200) {
-          setIsActive(response.data.active);
-          if (response.data.active) {
-            setStatus('Bot WhatsApp ativo e conectado');
-          } else {
-            setStatus('Bot WhatsApp desativado');
-          }
+        const session = await getWhatsAppSessionStatus();
+        if (!active) return;
+
+        if (session.authenticated) {
+          setSessionState('connected');
+          setQrCode('');
+          setFeedback({ type: 'success', text: 'WhatsApp conectado e pronto para uso.' });
+          return;
         }
+
+        if (session.connecting) {
+          timeoutId = window.setTimeout(poll, 3000);
+          return;
+        }
+
+        setSessionState('offline');
+        setQrCode('');
+        setFeedback({ type: 'info', text: 'A tentativa de conexão foi encerrada. Solicite um novo QR Code para tentar novamente.' });
       } catch (error) {
-        console.error('Erro ao verificar status do bot:', error);
-        setStatus('Erro ao verificar status do bot');
+        if (!active) return;
+        setSessionState('error');
+        setFeedback({ type: 'error', text: getApiErrorMessage(error, 'Não foi possível confirmar a conexão.') });
       }
     };
-    
-    checkBotStatus();
-  }, [navigate]);
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+    timeoutId = window.setTimeout(poll, 3000);
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [sessionState]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
+  const statusCopy = {
+    loading: { label: 'Consultando', detail: 'Verificando a sessão do WhatsApp.' },
+    starting: { label: 'Conectando', detail: 'Preparando uma nova sessão.' },
+    waiting: { label: 'Aguardando', detail: qrCode ? 'Escaneie o QR Code com o WhatsApp.' : 'Aguardando a confirmação da sessão.' },
+    connected: { label: 'Conectado', detail: 'Sua sessão está ativa.' },
+    offline: { label: 'Desconectado', detail: 'Conecte o WhatsApp para começar.' },
+    stopping: { label: 'Encerrando', detail: 'Finalizando a sessão do WhatsApp.' },
+    error: { label: 'Indisponível', detail: 'Não foi possível consultar a sessão.' },
+  }[sessionState];
 
-  // Render the active page content
-  const renderPage = () => {
-    switch (activePage) {
-      case 'dashboard':
-        return (
-          <div className="dashboard-content">
-            <div className="status-card">
-              <h2>Status do Bot</h2>
-              <div className="status-indicator">
-                <div className={`status-dot ${isActive ? 'active' : 'inactive'}`}></div>
-                <span>{status}</span>
-              </div>
-              
-              <div className="toggle-container">
-                <label className="toggle-switch">
-                  <input 
-                    type="checkbox" 
-                    checked={isActive}
-                    onChange={() => isActive ? stopWhatsAppSession() : startWhatsAppSession()}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-                <span>{isActive ? 'Desativar Bot' : 'Ativar Bot'}</span>
-              </div>
-            </div>
-            
-            {qrCode && (
-              <div className="qrcode-container">
-                <h2>Escaneie o QR Code</h2>
-                <div className="qrcode">
-                  <img src={`data:image/png;base64,${qrCode}`} alt="QR Code" />
-                </div>
-                <p>Use o aplicativo WhatsApp em seu celular para escanear este código</p>
-              </div>
-            )}
-            
-            <div className="stats-container">
-              <div className="stat-card">
-                <FiMessageSquare className="stat-icon" />
-                <div className="stat-info">
-                  <h3>Mensagens</h3>
-                  <p>1,234</p>
-                </div>
-              </div>
-              
-              <div className="stat-card">
-                <FiUsers className="stat-icon" />
-                <div className="stat-info">
-                  <h3>Contatos</h3>
-                  <p>85</p>
-                </div>
-              </div>
-              
-              <div className="stat-card">
-                <FiActivity className="stat-icon" />
-                <div className="stat-info">
-                  <h3>Tempo Ativo</h3>
-                  <p>3h 45m</p>
-                </div>
-              </div>
-              
-              <div className="stat-card">
-                <FiBarChart2 className="stat-icon" />
-                <div className="stat-info">
-                  <h3>Respostas</h3>
-                  <p>957</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'profile':
-        return (
-          <div className="profile-content">
-            <h2>Perfil do Usuário</h2>
-            <div className="profile-card">
-              <div className="profile-header">
-                <img src={user.avatar} alt="Avatar" className="profile-avatar" />
-                <div className="profile-info">
-                  <h3>{user.name}</h3>
-                  <p>{user.email}</p>
-                </div>
-              </div>
-              <div className="profile-details">
-                <div className="detail-item">
-                  <span className="detail-label">Nome:</span>
-                  <span className="detail-value">{user.name}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Email:</span>
-                  <span className="detail-value">{user.email}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Telefone:</span>
-                  <span className="detail-value">{user.phone || 'Não informado'}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Data de registro:</span>
-                  <span className="detail-value">{user.createdAt || '01/01/2024'}</span>
-                </div>
-              </div>
-              <div className="profile-actions">
-                <button className="btn edit-btn">Editar Perfil</button>
-                <button className="btn password-btn">Alterar Senha</button>
-              </div>
-            </div>
-          </div>
-        );
-      case 'settings':
-        return (
-          <div className="settings-content">
-            <h2>Configurações</h2>
-            <div className="settings-card">
-              <h3>Configurações do Bot</h3>
-              <div className="setting-item">
-                <div className="setting-label">
-                  <span>Mensagem de boas-vindas</span>
-                  <p className="setting-description">Mensagem enviada automaticamente para novos contatos</p>
-                </div>
-                <div className="setting-control">
-                  <textarea rows="3" placeholder="Olá! Sou um bot automatizado. Como posso ajudá-lo hoje?"></textarea>
-                </div>
-              </div>
-              
-              <div className="setting-item">
-                <div className="setting-label">
-                  <span>Resposta automática</span>
-                  <p className="setting-description">Responder automaticamente a mensagens quando estiver offline</p>
-                </div>
-                <div className="setting-control">
-                  <label className="toggle-switch small">
-                    <input type="checkbox" checked={true} />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-              
-              <div className="setting-item">
-                <div className="setting-label">
-                  <span>Notificações por e-mail</span>
-                  <p className="setting-description">Receber e-mails quando houver novas mensagens</p>
-                </div>
-                <div className="setting-control">
-                  <label className="toggle-switch small">
-                    <input type="checkbox" />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-              
-              <h3>Configurações da Conta</h3>
-              <div className="setting-item">
-                <div className="setting-label">
-                  <span>Tema escuro</span>
-                  <p className="setting-description">Mudar para o tema escuro</p>
-                </div>
-                <div className="setting-control">
-                  <label className="toggle-switch small">
-                    <input type="checkbox" />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-              
-              <div className="setting-item">
-                <div className="setting-label">
-                  <span>Idioma</span>
-                  <p className="setting-description">Selecione o idioma da interface</p>
-                </div>
-                <div className="setting-control">
-                  <select>
-                    <option value="pt-BR">Português (Brasil)</option>
-                    <option value="en-US">Inglês (EUA)</option>
-                    <option value="es">Espanhol</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="settings-actions">
-                <button className="btn save-btn">Salvar Alterações</button>
-              </div>
-            </div>
-          </div>
-        );
-      case 'help':
-        return (
-          <div className="help-content">
-            <h2>Ajuda e Suporte</h2>
-            <div className="help-card">
-              <h3>Perguntas Frequentes</h3>
-              <div className="faq-item">
-                <h4>Como conectar o WhatsApp Bot?</h4>
-                <p>Clique no botão "Ativar Bot" na dashboard e escaneie o QR Code com seu aplicativo WhatsApp.</p>
-              </div>
-              <div className="faq-item">
-                <h4>Como personalizar as respostas automáticas?</h4>
-                <p>Acesse a seção "Configurações" e edite os campos de respostas automáticas conforme necessário.</p>
-              </div>
-              <div className="faq-item">
-                <h4>Por quanto tempo o bot permanece conectado?</h4>
-                <p>O bot permanecerá conectado até que você o desative manualmente ou ocorra uma desconexão do servidor WhatsApp.</p>
-              </div>
-              <div className="faq-item">
-                <h4>Como adicionar novas respostas automáticas?</h4>
-                <p>Em "Configurações", você pode adicionar novas palavras-chave e suas respectivas respostas.</p>
-              </div>
-              
-              <h3>Contato</h3>
-              <p>Se você precisar de mais ajuda, entre em contato conosco:</p>
-              <div className="contact-info">
-                <p><strong>Email:</strong> suporte@whatsappbot.com</p>
-                <p><strong>Telefone:</strong> (11) 1234-5678</p>
-              </div>
-              
-              <button className="btn support-btn">Abrir Ticket de Suporte</button>
-            </div>
-          </div>
-        );
-      default:
-        return <div>Página não encontrada</div>;
+  const handleStartSession = async () => {
+    setFeedback(null);
+    setSessionState('starting');
+
+    try {
+      const session = await startWhatsAppSession();
+      if (session.authenticated) {
+        setSessionState('connected');
+        setQrCode('');
+        setFeedback({ type: 'success', text: 'WhatsApp conectado e pronto para uso.' });
+        return;
+      }
+
+      if (session.qr) {
+        setQrCode(session.qr);
+        setSessionState('waiting');
+        setFeedback({ type: 'info', text: 'Escaneie o QR Code antes que ele expire.' });
+        return;
+      }
+
+      setSessionState('error');
+      setFeedback({ type: 'error', text: 'A API não retornou um QR Code para esta sessão.' });
+    } catch (error) {
+      setSessionState('offline');
+      setFeedback({ type: 'error', text: getApiErrorMessage(error, 'Não foi possível iniciar a sessão.') });
     }
   };
+
+  const handleStopSession = async () => {
+    setSessionState('stopping');
+    setFeedback(null);
+
+    try {
+      await stopWhatsAppSession();
+      setSessionState('offline');
+      setQrCode('');
+      setFeedback({ type: 'success', text: 'Sessão do WhatsApp encerrada.' });
+    } catch (error) {
+      if (error.response?.status === 404) {
+        setSessionState('offline');
+        setQrCode('');
+        setFeedback({ type: 'info', text: 'Não havia uma sessão ativa para encerrar.' });
+      } else {
+        setSessionState('connected');
+        setFeedback({ type: 'error', text: getApiErrorMessage(error, 'Não foi possível encerrar a sessão.') });
+      }
+    }
+  };
+
+  const handleSendMessage = async (event) => {
+    event.preventDefault();
+    setMessageFeedback(null);
+
+    const number = recipient.replace(/\D/g, '');
+    const trimmedMessage = message.trim();
+    if (number.length < 7 || number.length > 15) {
+      setMessageFeedback({ type: 'error', text: 'Informe um telefone com código do país e entre 7 e 15 dígitos.' });
+      return;
+    }
+    if (!trimmedMessage || trimmedMessage.length > 4000) {
+      setMessageFeedback({ type: 'error', text: 'A mensagem deve ter entre 1 e 4.000 caracteres.' });
+      return;
+    }
+
+    setSendingMessage(true);
+    try {
+      await sendWhatsAppMessage(number, trimmedMessage);
+      setMessage('');
+      setMessageFeedback({ type: 'success', text: 'Mensagem enviada.' });
+    } catch (error) {
+      setMessageFeedback({ type: 'error', text: getApiErrorMessage(error, 'Não foi possível enviar a mensagem.') });
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    setSettingsFeedback(null);
+    try {
+      await updateUserSettings({ allowPauseContinue });
+      await refreshUser();
+      setSettingsFeedback({ type: 'success', text: 'Preferência salva no seu perfil.' });
+    } catch (error) {
+      setSettingsFeedback({ type: 'error', text: getApiErrorMessage(error, 'Não foi possível salvar a configuração.') });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate('/login', { replace: true });
+    }
+  };
+
+  const selectPage = (page) => {
+    setActivePage(page);
+    if (isMobile) setSidebarOpen(false);
+  };
+
+  const renderDashboard = () => (
+    <div className="dashboard-content">
+      <section className="panel status-card" aria-labelledby="status-title">
+        <div className="panel-heading">
+          <div>
+            <p className="section-eyebrow">Sua conta</p>
+            <h2 id="status-title">Conexão do WhatsApp</h2>
+          </div>
+          <span className={`status-pill status-${sessionState}`}>
+            <span className="status-dot" aria-hidden="true" />
+            {statusCopy.label}
+          </span>
+        </div>
+
+        <p className="status-description">{statusCopy.detail}</p>
+
+        {feedback && <div className={`feedback feedback-${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'}>{feedback.text}</div>}
+
+        <div className="session-actions">
+          {isConnected ? (
+            <button type="button" className="button button-secondary" onClick={handleStopSession} disabled={isBusy}>
+              {sessionState === 'stopping' ? 'Encerrando…' : 'Desconectar WhatsApp'}
+            </button>
+          ) : (
+            <button type="button" className="button button-primary" onClick={handleStartSession} disabled={isBusy}>
+              {sessionState === 'starting' ? 'Preparando…' : qrCode ? 'Solicitar QR Code novamente' : 'Conectar WhatsApp'}
+            </button>
+          )}
+          {sessionState === 'waiting' && (
+            <button type="button" className="button button-quiet" onClick={handleStopSession}>
+              Cancelar tentativa
+            </button>
+          )}
+        </div>
+
+        {qrCode && (
+          <div className="qr-panel">
+            <div>
+              <h3>Leia o código pelo WhatsApp</h3>
+              <p>Abra o WhatsApp no celular, acesse aparelhos conectados e leia este código.</p>
+            </div>
+            <img className="qr-image" src={qrCode} alt="QR Code para conectar sua conta do WhatsApp" />
+          </div>
+        )}
+      </section>
+
+      <section className="panel message-panel" aria-labelledby="message-title">
+        <div className="panel-heading">
+          <div>
+            <p className="section-eyebrow">Envio individual</p>
+            <h2 id="message-title">Enviar mensagem</h2>
+          </div>
+          <FiMessageSquare aria-hidden="true" />
+        </div>
+        <p className="panel-description">Envie uma mensagem de texto para um número com WhatsApp.</p>
+        <form className="message-form" onSubmit={handleSendMessage}>
+          <div className="form-group">
+            <label htmlFor="recipient">Telefone com código do país</label>
+            <input
+              id="recipient"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="5511999999999"
+              value={recipient}
+              onChange={(event) => setRecipient(event.target.value)}
+              maxLength={24}
+              disabled={!isConnected || sendingMessage}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <div className="field-heading">
+              <label htmlFor="message">Mensagem</label>
+              <span>{message.length}/4000</span>
+            </div>
+            <textarea
+              id="message"
+              rows={4}
+              placeholder="Escreva sua mensagem"
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              maxLength={4000}
+              disabled={!isConnected || sendingMessage}
+              required
+            />
+          </div>
+          {messageFeedback && <div className={`feedback feedback-${messageFeedback.type}`} role={messageFeedback.type === 'error' ? 'alert' : 'status'}>{messageFeedback.text}</div>}
+          {!isConnected && <p className="form-hint">Conecte sua conta do WhatsApp para habilitar o envio.</p>}
+          <button type="submit" className="button button-primary" disabled={!isConnected || sendingMessage}>
+            {sendingMessage ? 'Enviando…' : 'Enviar mensagem'}
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+
+  const renderProfile = () => (
+    <section className="panel profile-panel">
+      <div className="panel-heading">
+        <div>
+          <p className="section-eyebrow">Conta</p>
+          <h2>Meu perfil</h2>
+        </div>
+      </div>
+      <div className="profile-header">
+        <div className="profile-avatar" aria-hidden="true">{initials}</div>
+        <div className="profile-info">
+          <h3>{displayName}</h3>
+          <p>{user?.email || 'E-mail não informado'}</p>
+        </div>
+      </div>
+      <dl className="profile-details">
+        <div className="detail-item">
+          <dt>Nome</dt>
+          <dd>{displayName}</dd>
+        </div>
+        <div className="detail-item">
+          <dt>E-mail</dt>
+          <dd>{user?.email || 'Não informado'}</dd>
+        </div>
+        <div className="detail-item">
+          <dt>Número do WhatsApp</dt>
+          <dd>{user?.whatsappNumber || 'Ainda não conectado'}</dd>
+        </div>
+        <div className="detail-item">
+          <dt>Conta criada em</dt>
+          <dd>{formatDate(user?.createdAt)}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+
+  const renderSettings = () => (
+    <section className="panel settings-panel">
+      <div className="panel-heading">
+        <div>
+          <p className="section-eyebrow">Preferências</p>
+          <h2>Configurações</h2>
+        </div>
+      </div>
+      <div className="setting-item">
+        <div className="setting-label">
+          <h3>Permitir comandos de pausa e retomada</h3>
+          <p>Salva sua preferência para os comandos <code>/wait</code> e <code>/continue</code>.</p>
+        </div>
+        <label className="toggle-switch">
+          <input
+            type="checkbox"
+            checked={allowPauseContinue}
+            onChange={(event) => setAllowPauseContinue(event.target.checked)}
+            aria-label="Permitir comandos de pausa e retomada"
+          />
+          <span className="toggle-slider" />
+        </label>
+      </div>
+      <p className="setting-note">A API ainda não processa mensagens recebidas; esta preferência não ativa os comandos no WhatsApp.</p>
+      {settingsFeedback && <div className={`feedback feedback-${settingsFeedback.type}`} role={settingsFeedback.type === 'error' ? 'alert' : 'status'}>{settingsFeedback.text}</div>}
+      <div className="settings-actions">
+        <button type="button" className="button button-primary" onClick={handleSaveSettings} disabled={savingSettings}>
+          {savingSettings ? 'Salvando…' : 'Salvar preferência'}
+        </button>
+      </div>
+    </section>
+  );
+
+  const renderHelp = () => (
+    <section className="panel help-panel">
+      <div className="panel-heading">
+        <div>
+          <p className="section-eyebrow">Precisa de ajuda?</p>
+          <h2>Como usar o painel</h2>
+        </div>
+      </div>
+      <div className="help-item">
+        <h3>Como conectar meu WhatsApp?</h3>
+        <p>Selecione “Conectar WhatsApp”, leia o QR Code pelo aplicativo no celular e aguarde a confirmação nesta tela.</p>
+      </div>
+      <div className="help-item">
+        <h3>Como enviar uma mensagem?</h3>
+        <p>Depois de conectar, informe o número com código do país, escreva a mensagem e selecione “Enviar mensagem”.</p>
+      </div>
+      <div className="help-item">
+        <h3>Posso recuperar minha senha pelo painel?</h3>
+        <p>O serviço de recuperação ainda não está disponível. Entre em contato com o administrador da conta.</p>
+      </div>
+    </section>
+  );
+
+  const activePageTitle = navigation.find((item) => item.id === activePage)?.label || 'Visão geral';
+  const pageContent = {
+    dashboard: renderDashboard,
+    profile: renderProfile,
+    settings: renderSettings,
+    help: renderHelp,
+  }[activePage]();
 
   return (
     <div className="app-container">
-      {/* Sidebar */}
-      <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+      {isMobile && sidebarOpen && (
+        <button
+          className="sidebar-backdrop"
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`} aria-label="Menu principal">
         <div className="sidebar-header">
-          <div className="logo">
-            <FiMessageSquare />
-            <span>WhatsApp Bot</span>
-          </div>
+          <div className="logo-mark"><FiMessageSquare aria-hidden="true" /></div>
+          <span>WhatsApp Bot</span>
           {isMobile && (
-            <button className="close-sidebar" onClick={toggleSidebar}>
-              <FiX />
+            <button className="icon-button close-sidebar" type="button" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu">
+              <FiX aria-hidden="true" />
             </button>
           )}
         </div>
-        
+
         <div className="user-profile">
-          <img src={user.avatar} alt="Avatar do usuário" className="user-avatar" />
+          <div className="user-avatar" aria-hidden="true">{initials}</div>
           <div className="user-info">
-            <h3>{user.name}</h3>
-            <p>{user.email}</p>
+            <strong>{displayName}</strong>
+            <span>{user?.email}</span>
           </div>
         </div>
-        
-        <div className="sidebar-menu">
-          <button 
-            className={`menu-item ${activePage === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActivePage('dashboard')}
-          >
-            <FiActivity />
-            <span>Dashboard</span>
-          </button>
-          
-          <button 
-            className={`menu-item ${activePage === 'profile' ? 'active' : ''}`}
-            onClick={() => setActivePage('profile')}
-          >
-            <FiUser />
-            <span>Perfil</span>
-          </button>
-          
-          <button 
-            className={`menu-item ${activePage === 'settings' ? 'active' : ''}`}
-            onClick={() => setActivePage('settings')}
-          >
-            <FiSettings />
-            <span>Configurações</span>
-          </button>
-          
-          <button 
-            className={`menu-item ${activePage === 'help' ? 'active' : ''}`}
-            onClick={() => setActivePage('help')}
-          >
-            <FiHelpCircle />
-            <span>Ajuda</span>
-          </button>
-        </div>
-        
+
+        <nav className="sidebar-menu" aria-label="Seções">
+          {navigation.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              className={`menu-item ${activePage === id ? 'active' : ''}`}
+              onClick={() => selectPage(id)}
+              aria-current={activePage === id ? 'page' : undefined}
+            >
+              <Icon aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
         <div className="sidebar-footer">
-          <button className="logout-btn" onClick={handleLogout}>
-            <FiLogOut />
+          <button className="menu-item logout-btn" type="button" onClick={handleLogout}>
+            <FiLogOut aria-hidden="true" />
             <span>Sair</span>
           </button>
         </div>
-      </div>
-      
-      {/* Main Content */}
-      <div className="main-content">
-        <div className="top-bar">
+      </aside>
+
+      <main className="main-content">
+        <header className="top-bar">
           {isMobile && (
-            <button className="menu-toggle" onClick={toggleSidebar}>
-              <FiMenu />
+            <button className="icon-button menu-toggle" type="button" onClick={() => setSidebarOpen(true)} aria-label="Abrir menu">
+              <FiMenu aria-hidden="true" />
             </button>
           )}
-          <h1>{activePage === 'dashboard' ? 'Dashboard' : 
-               activePage === 'profile' ? 'Perfil do Usuário' : 
-               activePage === 'settings' ? 'Configurações' : 
-               activePage === 'help' ? 'Ajuda e Suporte' : 'WhatsApp Bot'}</h1>
-          <div className="top-bar-actions">
-            <div className="status-badge">
-              <span className={`status-indicator ${isActive ? 'active' : 'inactive'}`}></span>
-              <span>{isActive ? 'Online' : 'Offline'}</span>
-            </div>
+          <div>
+            <p className="section-eyebrow">Painel</p>
+            <h1>{activePageTitle}</h1>
           </div>
-        </div>
-        
-        <div className="content-wrapper">
-          {renderPage()}
-        </div>
-      </div>
+          <div className="top-bar-status">
+            <span className={`status-dot ${isConnected ? 'active' : ''}`} aria-hidden="true" />
+            <span>{isConnected ? 'WhatsApp online' : 'WhatsApp offline'}</span>
+          </div>
+        </header>
+
+        <div className="content-wrapper">{pageContent}</div>
+      </main>
     </div>
   );
-};
-
-export default Dashboard;
+}

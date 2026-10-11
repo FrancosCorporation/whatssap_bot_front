@@ -1,16 +1,17 @@
 {
-    "short_name": "App",
-    "name": "Whassap Bot",
-    "icons": [
-      {
-        "src": "icon-192.png",
-        "type": "image/png",
-        "sizes": "192x192"
-      }
-    ],
-    "start_url": ".",
-    "display": "standalone",
-    "theme_color": "#000000",
-    "background_color": "#ffffff"
-  }
-  
+  "id": "/",
+  "short_name": "WhatsApp Bot",
+  "name": "Painel WhatsApp Bot",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#12352c",
+  "background_color": "#f4f7f5"
+}

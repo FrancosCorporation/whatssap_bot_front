@@ -1,21 +1,18 @@
 # MELHORIAS — whatssap_bot_front
 
-> **Gerado por análise de código em 2026-10-02** · Stack: React 18 + CRA (`react-scripts`) + axios + React Router 6
-> Branch `master` · base `728a05c` · ~1.200 LOC · 0 testes · Dockerfile presente · sem CI
+> **Diagnóstico original: 2026-10-02 · Atualizado: 2026-10-11** · Stack atual: React 18 + Vite 8 + Axios + React Router 7
+> Branch `master` · base do diagnóstico `3f137f5` · Dockerfile, Compose, CI e SECURITY.md adicionados
 >
-> **Este arquivo é um plano de execução.** Cada item tem ID, `arquivo:linha`, mudança exata,
-> critério de aceite e comando de verificação.
+> **Estado:** itens implementados, exceto `TEST-01`, que permanece pendente. Não foram adicionados nem executados testes nesta rodada.
+> Os critérios abaixo registram o diagnóstico e as decisões de execução.
 
 ---
 
 ## 0. Como usar este documento
 
-1. Execute na ordem **P0 → P1 → P2 → P3**, respeitando as ondas da §8.
-2. Ao terminar um item: marque `- [x]`, rode o **Verificação**, comite `fix(<ID>): descrição`.
-3. **⚠️ LEIA ANTES: o login está SIMULADO.** `src/services/api.js:33-48` devolve
-   `token: 'token-simulado-para-testes'` e a `baseURL` é `'https://sua-api.com'` (placeholder).
-   **O front não fala com o back de verdade.** Isso muda a natureza do plano: não é "hardening de
-   app pronto", é **finalizar a integração** (ver `BUG-01`).
+1. O diagnóstico foi executado na ordem **P0 → P1 → P2 → P3**, respeitando as ondas da §8.
+2. A lista da §10 registra o estado dos critérios após a implementação.
+3. O login e o cadastro usam a API real; a URL é configurada por `VITE_API_URL` e a sessão fica no cookie `httpOnly`.
 4. **Idioma:** português.
 
 ---
@@ -322,8 +319,8 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 - **Arquivo:** *(ausente)* `.github/workflows/`
 - **Evidência:** sem workflow.
 - **Impacto:** nada trava o `BUG-01` (login simulado) de voltar, nem valida o build.
-- **Mudança:** `ci.yml`: `npm ci`, `CI=true npm test`, `npm run build`, e uma barreira que **falha** se
-  `token-simulado` ou `sua-api.com` aparecerem em `src/`.
+- **Mudança:** `ci.yml`: `npm ci`, `npm run lint`, `npm audit`, `npm run build` e uma barreira que
+  falha se um mock antigo ou token persistido aparecer em `src/`.
 - **Aceite:** PR com login simulado é bloqueado.
 - **Verificação:**
   ```bash
@@ -352,9 +349,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
   `recruiters-apllication-example`, com a mesma base, recebeu **203 CVEs** do GitHub, 5 críticas).
 - **Impacto:** risco de supply chain no **build** (o bundle vai a produção); `npm audit` ruidoso;
   tooling desatualizado (o `react-scripts` 5 tem limite de compatibilidade).
-- **Mudança:** (1) **migrar para Vite** — caminho já adotado nos projetos novos desta conta
-  (`devmetrics`, `game_farma`, `codespaces-react`); (2) se ficar no CRA, rodar `npm audit` e pinar
-  overrides para as transitivas críticas, sem `--force` (quebra o build).
+- **Mudança:** migrar para Vite e remover o CRA; atualizar o roteador para a versão corrigida.
 - **Aceite:** CVEs drasticamente reduzidas; `npm run build` funciona.
 - **Verificação:**
   ```bash
@@ -373,9 +368,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
   `baseURL` é placeholder.
 - **Impacto:** alguém sobe o front achando que está integrado; testa e não entende por que qualquer
   senha entra. É o oposto de documentação útil — mais grave que faltar.
-- **Mudança:** (1) seção "Estado atual" declarando **login simulado** e `baseURL` placeholder,
-  linkando `BUG-01`/`BUG-02`; (2) "Como ligar no backend": `REACT_APP_API_URL` + o CORS do back;
-  (3) remover o aviso quando `BUG-01`/`BUG-02` forem feitos.
+- **Mudança:** documentar a integração real, `VITE_API_URL`, CORS e as funções ainda não disponíveis.
 - **Aceite:** README deixa claro o que é mock e o que é real.
 - **Verificação:** `grep -ni 'simulad\|mock\|REACT_APP_API_URL' README.md`.
 
@@ -383,7 +376,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 
 - **Arquivo:** *(ausente)* `SECURITY.md`
 - **Evidência:** sem política (nem `LICENSE` no front).
-- **Impacto:** as invariantes (token **nunca** em `localStorage`; `REACT_APP_*` é **público**) precisam
+- **Impacto:** as invariantes (token **nunca** em `localStorage`; `VITE_*` é **público**) precisam
   estar escritas para não regredirem.
 - **Mudança:** criar com canal + as 2 invariantes.
 - **Aceite:** arquivo existe com as 2 invariantes.
@@ -404,7 +397,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 ### Wave 2 — Segurança da sessão (P1)
 5. **`SEC-01`** — cookie `httpOnly` (remover `localStorage`) — **junto** com `BUG-04` (contexto).
 6. **`TEST-01`** — testes (o de "falha se simulado" trava a Wave 1).
-7. **`SEC-02`** + **`SEC-03`** — Node 20 e `npm ci` estrito no Dockerfile.
+7. **`SEC-02`** + **`SEC-03`** — Node 24 e `npm ci` estrito no Dockerfile.
 
 ### Wave 3 — Robustez (P2)
 8. **`SEC-04`** — `ARG` só do necessário; **`IMP-03`** — CSP no serve.
@@ -447,39 +440,44 @@ remover o storage) · `TEST-01` depois de `BUG-01` (o teste trava a integração
 ## 10. Definição de pronto (DoD)
 
 **Funcional (a raiz)**
-- [ ] `BUG-01` — nenhum `token-simulado`; login chama o back; credencial inválida → erro
-- [ ] `BUG-02` — `baseURL` por `REACT_APP_API_URL`, sem placeholder
-- [ ] `BUG-03` — `401` leva ao login
-- [ ] `BUG-04` — `AuthContext` com login/logout refletindo em todas as páginas
-- [ ] `BUG-05` — loading/erro padronizados
-- [ ] `BUG-06` — build local sem source map
+- [x] `BUG-01` — login e cadastro chamam o backend real; erros são exibidos sem mock
+- [x] `BUG-02` — URL da API validada por `VITE_API_URL`, sem placeholder
+- [x] `BUG-03` — `401` encerra o estado local de sessão e leva ao login
+- [x] `BUG-04` — `AuthContext` compartilha usuário, login, logout e perfil
+- [x] `BUG-05` — carregamento e erros têm feedback visível
+- [x] `BUG-06` — build Vite sem source map
 
 **Segurança**
-- [ ] `SEC-01` — **nenhum** token em `localStorage`; sessão via cookie `httpOnly` + `withCredentials`
-- [ ] `SEC-02` — Node 20 nos dois estágios
-- [ ] `SEC-03` — `npm ci` estrito (sem `||`)
-- [ ] `SEC-04` — `ARG` apenas com `REACT_APP_API_URL`; nenhum segredo no bundle
-- [ ] `IMP-03` — CSP e headers no serve
+- [x] `SEC-01` — sem token em `localStorage`; sessão via cookie `httpOnly` + `withCredentials`
+- [x] `SEC-02` — Node 24 no build; Nginx não-root no estágio de serviço
+- [x] `SEC-03` — `npm ci` estrito, sem fallback
+- [x] `SEC-04` — `VITE_API_URL` é a única configuração pública de build; não recebe segredos
+- [x] `IMP-03` — CSP e cabeçalhos de segurança no Nginx
 
 **Qualidade e infra**
-- [ ] `IMP-01` — `.env.example` com `REACT_APP_API_URL`; `.env` ignorado
-- [ ] `IMP-02` — validação de formulário no cliente
-- [ ] `TEST-01` — testes (incluindo "falha se simulado")
-- [ ] `DEVOPS-01` — CI com barreira anti-mock
-- [ ] `DEVOPS-02` — `.dockerignore`
-- [ ] `DEVOPS-03` — CVEs do CRA tratadas (Vite ou overrides)
+- [x] `IMP-01` — `.env.example` com `VITE_API_URL`; `.env` ignorado e removido do Git
+- [x] `IMP-02` — validação de cadastro e login no cliente
+- [ ] `TEST-01` — testes não foram adicionados nem executados nesta rodada
+- [x] `DEVOPS-01` — CI com lint, auditoria, build e barreira anti-mock
+- [x] `DEVOPS-02` — `.dockerignore` exclui ambiente, dependências e arquivos locais
+- [x] `DEVOPS-03` — CRA removido; Vite adotado; auditoria sem vulnerabilidades
 
 **Documentação**
-- [ ] `DOC-01` — README declara o que é mock e como ligar no back
-- [ ] `DOC-02` — `SECURITY.md` com as 2 invariantes
+- [x] `DOC-01` — README documenta integração, variáveis e limites atuais
+- [x] `DOC-02` — `SECURITY.md` registra as invariantes
 
 **Validação final:**
 ```bash
-grep -rn 'token-simulado\|sua-api.com' src/ && echo FALHA || echo OK
-grep -rn 'localStorage.*token' src/ && echo FALHA || echo OK
-CI=true npm test 2>&1 | tail -3
+npm ci
+npm run check
+npm audit --audit-level=high
+docker compose config --quiet
+docker build -t whatssap-bot-front:local .
+docker run --rm --entrypoint nginx whatssap-bot-front:local -t
 ```
+
+`TEST-01` continua pendente. O navegador desta sessão não estava disponível para inspeção visual; a tela foi validada por lint, build e configuração da imagem.
 
 ---
 
-*Fim do plano. Gerado por leitura direta do código em 2026-10-02. Nenhum item já estava corrigido.*
+*Fim do plano. Diagnóstico original de 2026-10-02; execução atualizada em 2026-10-11.*

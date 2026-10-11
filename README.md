@@ -1,98 +1,60 @@
-# WhatsApp Bot — Front-end
+# WhatsApp Bot — painel web
 
-## 🐳 Instalação e Execução (Docker) — recomendado
+Interface React para criar uma conta, conectar o WhatsApp por QR Code, acompanhar a sessão e enviar mensagens individuais pela API.
 
-### Pré-requisitos
-- [Docker](https://docs.docker.com/get-docker/) + Docker Compose
+## Requisitos
 
-### Rodar com Docker
+- Node.js 22.13 ou mais recente (a imagem Docker usa Node 24).
+- A API do projeto irmão [whatssap_bot_api_back_end](https://github.com/FrancosCorporation/whatssap_bot_api_back_end), configurada para aceitar a origem `http://localhost:3000`.
+
+## Desenvolvimento local
+
 ```bash
+cp .env.example .env
+npm ci
+npm start
+```
+
+O painel abre em `http://localhost:3000`. Configure `VITE_API_URL` no `.env` com a origem HTTP(S) da API, sem caminho adicional. Para o ambiente local, o exemplo usa `http://localhost:3005`.
+
+Para criar o bundle de produção:
+
+```bash
+npm run lint
+npm run build
+```
+
+`VITE_API_URL` é incluída no JavaScript público do navegador. Não coloque tokens, senhas ou outras credenciais em variáveis com prefixo `VITE_`.
+
+## Docker Compose
+
+```bash
+cp .env.example .env
 docker compose up --build
 ```
 
+O Compose sobe somente o front-end, publicado em `http://localhost:3000`. A API precisa estar disponível no endereço informado por `VITE_API_URL`. Para uma implantação, defina o endereço público da API antes de construir a imagem; essa configuração é embutida no bundle e na política CSP.
 
-### Sem Docker (local)
-```bash
-npm install
-npm start
-```
+## Conta e sessão
 
+- Cadastro: `POST /register`.
+- Login: `POST /login`; a sessão usa o cookie `httpOnly` da API.
+- Validação da sessão: `GET /verify`; perfil: `GET /api/user/profile`.
+- Logout: `POST /logout`, que remove o cookie no servidor.
+- Conexão WhatsApp: `POST /api/whatsapp/start`, `GET /api/check-session-status` e `POST /api/whatsapp/stop`.
+- Envio individual: `POST /api/whatsapp/send`.
+- Preferência de pausa/retomada: `GET /api/user/profile` e `PUT /api/user/settings`.
 
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
-![Create React App](https://img.shields.io/badge/Create%20React%20App-5-09D3AC?logo=createreactapp&logoColor=white)
-![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-blue)
-![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
+A recuperação de senha ainda não está implementada pela API. A preferência `/wait` e `/continue` pode ser salva no perfil, mas a API atual ainda não processa mensagens recebidas nem esses comandos.
 
-Interface web em React para autenticação de usuários e controle da sessão do bot de WhatsApp (QR Code, status de conexão e logout).
+## Segurança
 
-## Sobre
+O navegador não persiste JWT em `localStorage` ou `sessionStorage`. As chamadas usam cookies com credenciais, e o Docker serve o bundle com cabeçalhos de segurança e CSP ajustada à origem da API. Veja [SECURITY.md](./SECURITY.md).
 
-Este é o front-end do bot de WhatsApp: um painel em React que consome a API do repositório irmão [whatssap_bot_api_back_end](https://github.com/FrancosCorporation/whatssap_bot_api_back_end). O usuário cria a conta, faz login e, no dashboard, liga/desliga o bot e escaneia o QR Code para parear o número.
+## Estrutura
 
-A aplicação foi criada com Create React App e usa React Router para separar as telas de login, cadastro, recuperação de senha e dashboard (esta última protegida).
-
-## Funcionalidades
-
-- Tela de login com validação de campos, campo honeypot anti-bot e envio de `POST /login` via Axios com cookies (`withCredentials`); em caso de sucesso grava `token` e `authenticated` no `localStorage` e redireciona para o dashboard.
-- Tela de cadastro com confirmação de senha, confirmação de e-mail e envio de `POST /register`, redirecionando para o login.
-- Tela de recuperação de senha (apenas mensagem informativa no cliente; ainda não chama a API).
-- Rota privada (`/dashboard`) que só renderiza com `authenticated === 'true'` no `localStorage`.
-- Dashboard com botão de ativar/desativar o bot, exibição do QR Code retornado pela API (`POST /api/whatsapp/start`) e polling de `GET /api/check-session-status` a cada 3 segundos para confirmar a conexão.
-- Sidebar responsiva (colapsa em telas menores) e logout que remove o token e volta para o login.
-- Cliente Axios central em `src/services/api.js` com interceptor que injeta o token `Bearer` em todas as requisições (as funções `login`/`fetchUserData` desse arquivo estão simuladas para demonstração).
-
-## Stack
-
-- **React 18** (Create React App 5, `react-scripts`)
-- **React Router DOM 6**
-- **Axios**
-- **React Icons** (ícones Feather)
-- **CSS puro** (arquivos `.css` por página)
-
-## Como rodar
-
-Requer configuração de ambiente: a URL da API é lida de `REACT_APP_API_URL` (arquivo `.env` na raiz, atualmente apontando para `http://localhost:3005`).
-
-```bash
-# 1. Instalar dependências
-npm install
-
-# 2. Conferir o arquivo .env
-# REACT_APP_API_URL=http://localhost:3005
-
-# 3. Subir o front-end em modo de desenvolvimento (http://localhost:3000)
-npm start
-
-# Build de produção
-npm run build
-
-# Testes (CRA + Testing Library)
-npm test
-
-# Ejetar a configuração do CRA (irreversível)
-npm run eject
-```
-
-A API precisa estar rodando (repositório `whatssap_bot_api_back_end`) e com CORS liberado para `http://localhost:3000`.
-
-## Estrutura do projeto
-
-```
-whatssap_bot_front/
-├── public/
-│   ├── index.html
-│   └── manifest.json
-├── src/
-│   ├── App.js
-│   ├── index.js
-│   ├── layouts/MainLayout.js
-│   ├── pages/            # Login, Signup, Forgot, Dashboard, Home, Profile (+ CSS)
-│   ├── routes/Router.js  # rotas e PrivateRoute
-│   ├── services/api.js   # cliente Axios
-│   └── assets/
-└── .env                  # REACT_APP_API_URL
-```
-
-## Licença
-
-Distribuído sob a licença MIT. Consulte o arquivo [LICENSE](./LICENSE).
+- `src/contexts/AuthContext.jsx`: sessão e dados de usuário compartilhados entre as telas.
+- `src/services/api.js`: cliente HTTP, endpoints e erros legíveis.
+- `src/pages/`: login, cadastro, recuperação informativa e painel.
+- `nginx.conf`: fallback do SPA e cabeçalhos de segurança da imagem.
+- `MELHORIAS.md`: diagnóstico e registro do trabalho deste projeto.

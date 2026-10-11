@@ -5,3 +5,13 @@ build
 *.log
 .env
 npm-debug.log*
+node_modules
+.git
+dist
+build
+.env
+.env.*
+!.env.example
+*.log
+src/pages/*.backup
+npm-debug.log*
