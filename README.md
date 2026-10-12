@@ -5,7 +5,7 @@ Interface React para criar uma conta, conectar o WhatsApp por QR Code, acompanha
 ## Requisitos
 
 - Node.js 22.13 ou mais recente (a imagem Docker usa Node 24).
-- A API do projeto irmão [whatssap_bot_api_back_end](https://github.com/FrancosCorporation/whatssap_bot_api_back_end), configurada para aceitar a origem `http://localhost:3000`.
+- A API do projeto irmão [whatssap_bot_api_back_end](https://github.com/FrancosCorporation/whatssap_bot_api_back_end), configurada para aceitar a origem exata do painel (`http://localhost:3000` no Compose local).
 
 ## Desenvolvimento local
 
@@ -34,6 +34,8 @@ docker compose up --build
 ```
 
 O Compose sobe somente o front-end, publicado em `http://localhost:3000`. A API precisa estar disponível no endereço informado por `VITE_API_URL`. Para uma implantação, defina o endereço público da API antes de construir a imagem; essa configuração é embutida no bundle e na política CSP.
+
+Em produção, sirva o painel e a API por HTTPS e em origens do mesmo site (por exemplo, `app.exemplo.com` e `api.exemplo.com`). A API usa cookie `SameSite=Strict`; domínios de sites diferentes não compartilharão a sessão, mesmo com CORS e `withCredentials` habilitados. Configure também a origem exata do painel na lista CORS da API.
 
 ## Conta e sessão
 

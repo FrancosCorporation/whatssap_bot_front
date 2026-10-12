@@ -182,6 +182,7 @@ export default function Dashboard() {
   };
 
   const handleStopSession = async () => {
+    const previousSessionState = sessionState;
     setSessionState('stopping');
     setFeedback(null);
 
@@ -196,7 +197,7 @@ export default function Dashboard() {
         setQrCode('');
         setFeedback({ type: 'info', text: 'Não havia uma sessão ativa para encerrar.' });
       } else {
-        setSessionState('connected');
+        setSessionState(previousSessionState);
         setFeedback({ type: 'error', text: getApiErrorMessage(error, 'Não foi possível encerrar a sessão.') });
       }
     }

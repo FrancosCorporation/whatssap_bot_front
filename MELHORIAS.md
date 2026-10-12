@@ -3,8 +3,10 @@
 > **Diagnóstico original: 2026-10-02 · Atualizado: 2026-10-11** · Stack atual: React 18 + Vite 8 + Axios + React Router 7
 > Branch `master` · base do diagnóstico `3f137f5` · Dockerfile, Compose, CI e SECURITY.md adicionados
 >
-> **Estado:** itens implementados, exceto `TEST-01`, que permanece pendente. Não foram adicionados nem executados testes nesta rodada.
+> **Estado atual:** os itens do diagnóstico inicial foram implementados, com `TEST-01` adiado por instrução. Não foram adicionados nem executados testes nesta rodada. A auditoria de acompanhamento e os ajustes feitos em 2026-10-11 estão na §11.
 > Os critérios abaixo registram o diagnóstico e as decisões de execução.
+
+> **Nota de contexto:** as §§1–9 preservam o diagnóstico histórico da árvore em 2026-10-02. Referências a CRA, mocks, `localStorage`, Node 16 e outros defeitos descrevem aquele ponto de partida, não o código atual. Para o estado vigente, consulte as §§10–11, o [README](./README.md) e [SECURITY.md](./SECURITY.md).
 
 ---
 
@@ -17,12 +19,12 @@
 
 ---
 
-## 1. Diagnóstico executivo
+## 1. Diagnóstico inicial (histórico — 2026-10-02)
 
 Front React do bot de WhatsApp: login, signup, recuperação de senha, dashboard e layout. O código de
 UI é completo (526 linhas de Dashboard, páginas de auth).
 
-**O que está bem (não reaça):**
+**O que estava bem no baseline (não reaja):**
 
 | Item | Evidência |
 |---|---|
@@ -45,7 +47,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 
 ---
 
-## 2. Tabela de prioridades
+## 2. Tabela de prioridades inicial (histórica; estado atual na §10)
 
 | ID | Título | Sev | Arquivo | Depende de |
 |---|---|---|---|---|
@@ -73,7 +75,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 
 ---
 
-## 3. Bugs e defeitos funcionais (a raiz: o front não está ligado)
+## 3. Bugs e defeitos funcionais do baseline (histórico)
 
 ### BUG-01 · Login **simulado** — front não integra com o backend · [P0]
 
@@ -176,7 +178,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 
 ---
 
-## 4. Segurança
+## 4. Segurança no baseline (histórico)
 
 ### SEC-01 · Token em `localStorage` (ignora o cookie `httpOnly` do back) · [P1]
 
@@ -260,7 +262,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 
 ---
 
-## 5. Qualidade: testes e validação
+## 5. Qualidade: testes e validação no baseline (histórico)
 
 ### IMP-02 · Sem validação de formulário · [P2]
 
@@ -292,7 +294,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 
 ---
 
-## 6. DevOps / Infra
+## 6. DevOps / Infra no baseline (histórico)
 
 ### IMP-01 · Sem `.env.example` · [P1]
 
@@ -359,7 +361,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 
 ---
 
-## 7. Documentação
+## 7. Documentação no baseline (histórico)
 
 ### DOC-01 · README não avisa que o login é simulado · [P1]
 
@@ -384,7 +386,7 @@ UI é completo (526 linhas de Dashboard, páginas de auth).
 
 ---
 
-## 8. Ordem de execução (waves)
+## 8. Ordem de execução original (histórica)
 
 ### Wave 1 — Ligar o front de verdade (P0)
 1. **`BUG-02`** — `baseURL` por env + `.env.example` (`IMP-01`).
@@ -415,7 +417,7 @@ remover o storage) · `TEST-01` depois de `BUG-01` (o teste trava a integração
 
 ---
 
-## 9. Fora de escopo / riscos
+## 9. Fora de escopo / riscos identificados no baseline (histórico)
 
 | Item | Decisão | Motivo |
 |---|---|---|
@@ -466,17 +468,24 @@ remover o storage) · `TEST-01` depois de `BUG-01` (o teste trava a integração
 - [x] `DOC-01` — README documenta integração, variáveis e limites atuais
 - [x] `DOC-02` — `SECURITY.md` registra as invariantes
 
-**Validação final:**
-```bash
-npm ci
-npm run check
-npm audit --audit-level=high
-docker compose config --quiet
-docker build -t whatssap-bot-front:local .
-docker run --rm --entrypoint nginx whatssap-bot-front:local -t
-```
+**Validação de acompanhamento em 2026-10-11:** `npm run lint`, `npm run build`, `npm audit --audit-level=high`, `git diff --check` e renderização da CSP passaram. O build gerou apenas JS e CSS, sem source map.
 
-`TEST-01` continua pendente. O navegador desta sessão não estava disponível para inspeção visual; a tela foi validada por lint, build e configuração da imagem.
+`TEST-01` continua pendente por instrução. Esta rodada não executou testes nem iniciou serviços.
+
+## 11. Auditoria de acompanhamento — 2026-10-11
+
+**Base auditada:** branch `master`, inicialmente em `40bde757642ee3839215b326923e08001865fa77`, igual a `origin/master`.
+
+| ID | Achado | Ação |
+|---|---|---|
+| UI-01 | Se o cancelamento da sessão falhasse durante a espera pelo QR Code, o painel assumia incorretamente o estado `connected`. | Restaurar o estado anterior ao pedido quando a API falha; respostas `404` continuam indicando sessão offline. |
+| SEC-05 | A CSP permitia estilos inline sem uso identificado no bundle do painel. | Remover `'unsafe-inline'` de `style-src`; folhas CSS carregadas da própria origem continuam permitidas. |
+| DOC-03 | A documentação de implantação não explicava a restrição do cookie `SameSite=Strict`. | Registrar a exigência de HTTPS, mesma origem de site e origem CORS exata em README e SECURITY. |
+| DOC-04 | O diagnóstico inicial podia ser confundido com o estado atual do código. | Marcar §§1–9 como baseline histórico e apontar para esta auditoria e os documentos vigentes. |
+
+**Verificações desta rodada:** `npm audit --json` informou zero vulnerabilidades (38 dependências de produção; 198 no total). O CI do commit base `40bde757642ee3839215b326923e08001865fa77` concluiu com sucesso (`Frontend CI`, execução `38159643268`). O CI será executado novamente após publicar os ajustes.
+
+Lint, build e auditoria passaram; não foram adicionados nem executados testes. A validação visual manual também não foi feita nesta rodada.
 
 ---
 
