@@ -480,10 +480,11 @@ remover o storage) · `TEST-01` depois de `BUG-01` (o teste trava a integração
 |---|---|---|
 | UI-01 | Se o cancelamento da sessão falhasse durante a espera pelo QR Code, o painel assumia incorretamente o estado `connected`. | Restaurar o estado anterior ao pedido quando a API falha; respostas `404` continuam indicando sessão offline. |
 | SEC-05 | A CSP permitia estilos inline sem uso identificado no bundle do painel. | Remover `'unsafe-inline'` de `style-src`; folhas CSS carregadas da própria origem continuam permitidas. |
+| CI-01 | A CI usava actions v4 com runtime Node 20 e o alias `ubuntu-latest`, que estava prestes a mudar de versão principal. | Atualizar checkout/setup-node para v5 (runtime Node 24) e fixar o runner `ubuntu-24.04`. |
 | DOC-03 | A documentação de implantação não explicava a restrição do cookie `SameSite=Strict`. | Registrar a exigência de HTTPS, mesma origem de site e origem CORS exata em README e SECURITY. |
 | DOC-04 | O diagnóstico inicial podia ser confundido com o estado atual do código. | Marcar §§1–9 como baseline histórico e apontar para esta auditoria e os documentos vigentes. |
 
-**Verificações desta rodada:** `npm audit --json` informou zero vulnerabilidades (38 dependências de produção; 198 no total). O CI do commit base `40bde757642ee3839215b326923e08001865fa77` concluiu com sucesso (`Frontend CI`, execução `38159643268`). O CI será executado novamente após publicar os ajustes.
+**Verificações desta rodada:** `npm audit --json` informou zero vulnerabilidades (38 dependências de produção; 198 no total). O CI do commit base `40bde757642ee3839215b326923e08001865fa77` concluiu com sucesso (`Frontend CI`, execução `38159643268`), mas sinalizou runtime Node 20 e a próxima migração de `ubuntu-latest`; CI-01 remove essas duas fontes de surpresa.
 
 Lint, build e auditoria passaram; não foram adicionados nem executados testes. A validação visual manual também não foi feita nesta rodada.
 
