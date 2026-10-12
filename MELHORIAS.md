@@ -484,7 +484,7 @@ remover o storage) · `TEST-01` depois de `BUG-01` (o teste trava a integração
 | DOC-03 | A documentação de implantação não explicava a restrição do cookie `SameSite=Strict`. | Registrar a exigência de HTTPS, mesma origem de site e origem CORS exata em README e SECURITY. |
 | DOC-04 | O diagnóstico inicial podia ser confundido com o estado atual do código. | Marcar §§1–9 como baseline histórico e apontar para esta auditoria e os documentos vigentes. |
 
-**Verificações desta rodada:** `npm audit --json` informou zero vulnerabilidades (38 dependências de produção; 198 no total). O CI do commit base `40bde757642ee3839215b326923e08001865fa77` concluiu com sucesso (`Frontend CI`, execução `38159643268`), mas sinalizou runtime Node 20 e a próxima migração de `ubuntu-latest`; CI-01 remove essas duas fontes de surpresa.
+**Verificações desta rodada:** `npm audit --json` informou zero vulnerabilidades (38 dependências de produção; 198 no total). O CI do commit base `40bde757642ee3839215b326923e08001865fa77` concluiu com sucesso (`Frontend CI`, execução `38159643268`), mas sinalizou runtime Node 20 e a próxima migração de `ubuntu-latest`; CI-01 remove essas duas fontes de surpresa. Após os ajustes, `Frontend CI` passou na execução `38192425452` com checkout/setup-node v5, lint, audit, barreira anti-mock e build; não reportou os avisos anteriores.
 
 Lint, build e auditoria passaram; não foram adicionados nem executados testes. A validação visual manual também não foi feita nesta rodada.
 
